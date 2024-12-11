@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="menu-container">
+    <!-- Banner principal -->
+    <div class="hero-section text-center mb-5">
+        <h1>Bienvenido a Sushi Zen</h1>
+        <p class="lead">Descubre nuestra deliciosa selección de sushi artesanal</p>
+    </div>
+
+    <!-- Navegación de categorías -->
+    <div class="category-nav mb-4">
+        <div class="nav nav-pills justify-content-center" id="menu-tab" role="tablist">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#handrolls">Handrolls</button>
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sushi">Gohan</button>
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#bebidas">Bebidas</button>
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#extras">Extras</button>
+        </div>
+    </div>
+
+    <!-- Contenido del menú -->
+    <div class="tab-content" id="menu-content">
+        <!-- Handrolls -->
+        <div class="tab-pane fade show active" id="handrolls">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for item in menu_items.Handrolls %}
+                <div class="col">
+                    <div class="card h-100 menu-item">
+                        <img src="{{ url_for('static', filename='img/default-sushi.jpg') }}" class="card-img-top" alt="{{ item.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text">{{ item.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price">${{ "{:,.0f}".format(item.price) }}</span>
+                                <button class="btn btn-primary add-to-cart" data-id="{{ item.id }}">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sushi -->
+        <div class="tab-pane fade" id="sushi">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for item in menu_items.Sushi %}
+                <div class="col">
+                    <div class="card h-100 menu-item">
+                        <img src="{{ url_for('static', filename='img/default-sushi.jpg') }}" class="card-img-top" alt="{{ item.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text">{{ item.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price">${{ "{:,.0f}".format(item.price) }}</span>
+                                <button class="btn btn-primary add-to-cart" data-id="{{ item.id }}">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Bebidas -->
+        <div class="tab-pane fade" id="bebidas">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for item in menu_items.Bebidas %}
+                <div class="col">
+                    <div class="card h-100 menu-item">
+                        <img src="{{ url_for('static', filename='img/default-bebida.jpg') }}" class="card-img-top" alt="{{ item.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text">{{ item.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price">${{ "{:,.0f}".format(item.price) }}</span>
+                                <button class="btn btn-primary add-to-cart" data-id="{{ item.id }}">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Extras -->
+        <div class="tab-pane fade" id="extras">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for item in menu_items.Extras %}
+                <div class="col">
+                    <div class="card h-100 menu-item">
+                        <img src="{{ url_for('static', filename='img/default-extra.jpg') }}" class="card-img-top" alt="{{ item.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text">{{ item.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="price">${{ "{:,.0f}".format(item.price) }}</span>
+                                <button class="btn btn-primary add-to-cart" data-id="{{ item.id }}">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Carrito flotante -->
+    <div class="cart-floating" id="carrito">
+        <div class="cart-header">
+            <h3>Tu Pedido</h3>
+            <button class="btn-close" aria-label="Close"></button>
+        </div>
+        <div class="cart-items">
+            <!-- Los items del carrito se agregarán dinámicamente -->
+        </div>
+        <div class="cart-footer">
+            <div class="total">
+                <span>Total:</span>
+                <span id="cart-total">$0</span>
+            </div>
+            <button class="btn btn-success w-100" id="submit-order">
+                Realizar Pedido
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

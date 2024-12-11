@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Barra de navegación del admin -->
+    <nav class="admin-nav mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('main.index') }}" class="btn btn-link text-dark">
+                    <i class="fas fa-utensils fa-lg"></i>
+                </a>
+                <h4 class="mb-0 ms-3">Panel de Administración</h4>
+            </div>
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('admin.kitchen') }}" class="btn btn-primary me-3">
+                    <i class="fas fa-kitchen-set me-2"></i>
+                    Vista de Cocina
+                </a>
+                <div class="current-time">
+                    <i class="far fa-clock"></i>
+                    <span id="current-time">{{ current_time.strftime('%d/%m/%Y %H:%M:%S') }}</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <!-- Generador de QR -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Generador de Códigos QR</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="table-number">Número de Mesa:</label>
+                            <input type="number" class="form-control" id="table-number" min="1" max="50">
+                        </div>
+                        <button class="btn btn-primary" id="generate-btn">Generar QR</button>
+                        
+                        <div class="mt-4 text-center" id="qr-container">
+                            <div id="qr-empty-state">
+                                <i class="fas fa-qrcode fa-3x text-muted"></i>
+                                <p class="mt-2 text-muted">El código QR aparecerá aquí</p>
+                            </div>
+                            <img id="qr-code" class="d-none">
+                            <div id="qr-info" class="mt-3 d-none">
+                                <p class="mb-2"><strong>Token:</strong> <span id="token-text"></span></p>
+                                <p class="mb-2"><strong>URL Completa:</strong></p>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="url-text" readonly>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('url-text')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="mb-2 mt-3"><strong>Código de Activación:</strong> <span id="activation-code"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gestión de Mesas -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Gestión de Mesas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="activation-code-input">Código de Activación:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="activation-code-input" placeholder="Ingrese el código de 6 dígitos">
+                                <button class="btn btn-success" type="button" id="activate-table-btn">Activar Mesa</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="session-duration">Duración de la Sesión:</label>
+                            <select class="form-control" id="session-duration">
+                                <option value="60">1 hora</option>
+                                <option value="120" selected>2 horas</option>
+                                <option value="180">3 horas</option>
+                                <option value="240">4 horas</option>
+                            </select>
+                        </div>
+
+                        <div id="active-tables" class="mt-4">
+                            <h6>Mesas Activas</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Mesa</th>
+                                            <th>Inicio</th>
+                                            <th>Fin</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="active-tables-body">
+                                        <!-- Las mesas activas se cargarán aquí -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function activateTable(token, activationCode) {
+    fetch('/admin/activate_table', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            token: token,
+            activation_code: activationCode,
+            duration: 120 // 2 horas en minutos
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Actualizar la lista de mesas activas
+            updateActiveTables();
+            // Mostrar mensaje de éxito
+            alert('Mesa activada exitosamente');
+        } else {
+            alert(data.error || 'Error al activar la mesa');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al activar la mesa. Por favor, intente nuevamente.');
+    });
+}
+
+function updateActiveTables() {
+    fetch('/admin/active_tables')
+        .then(response => response.json())
+        .then(data => {
+            const activeTablesDiv = document.getElementById('active-tables');
+            activeTablesDiv.innerHTML = ''; // Limpiar contenido actual
+            
+            if (data.tables && data.tables.length > 0) {
+                const table = document.createElement('table');
+                table.className = 'table table-striped';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Mesa</th>
+                            <th>Inicio de Sesión</th>
+                            <th>Fin de Sesión</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                `;
+                
+                data.tables.forEach(tableData => {
+                    const row = table.querySelector('tbody').insertRow();
+                    row.innerHTML = `
+                        <td>${tableData.table_number}</td>
+                        <td>${new Date(tableData.session_start).toLocaleString()}</td>
+                        <td>${new Date(tableData.session_end).toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deactivateTable('${tableData.table_number}')">
+                                Desactivar
+                            </button>
+                        </td>
+                    `;
+                });
+                
+                activeTablesDiv.appendChild(table);
+            } else {
+                activeTablesDiv.innerHTML = '<p>No hay mesas activas en este momento.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+// Actualizar la lista de mesas activas cada 30 segundos
+setInterval(updateActiveTables, 30000);
+
+// Actualizar la lista inicial al cargar la página
+document.addEventListener('DOMContentLoaded', updateActiveTables);
+
+document.addEventListener('DOMContentLoaded', function() {
+    const generateBtn = document.getElementById('generate-btn');
+    const tableNumberInput = document.getElementById('table-number');
+    const qrCode = document.getElementById('qr-code');
+    const qrEmptyState = document.getElementById('qr-empty-state');
+    const qrInfo = document.getElementById('qr-info');
+    const tokenText = document.getElementById('token-text');
+    const urlText = document.getElementById('url-text');
+    const activationCodeSpan = document.getElementById('activation-code');
+    
+    generateBtn.addEventListener('click', function() {
+        const tableNumber = tableNumberInput.value;
+        if (!tableNumber) {
+            alert('Por favor, ingrese un número de mesa');
+            return;
+        }
+        
+        fetch('/admin/generate_table_qr', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                table_number: tableNumber
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            qrCode.src = 'data:image/png;base64,' + data.qr_code;
+            qrCode.classList.remove('d-none');
+            qrEmptyState.classList.add('d-none');
+            qrInfo.classList.remove('d-none');
+            tokenText.textContent = data.token;
+            urlText.value = data.url;
+            activationCodeSpan.textContent = data.activation_code;
+        });
+    });
+
+    // Activación de mesa
+    const activateTableBtn = document.getElementById('activate-table-btn');
+    const activationCodeInput = document.getElementById('activation-code-input');
+    const sessionDurationSelect = document.getElementById('session-duration');
+
+    activateTableBtn.addEventListener('click', function() {
+        const activationCode = activationCodeInput.value;
+        const duration = sessionDurationSelect.value;
+        const token = tokenText.textContent; // Obtener el token del span
+
+        if (!activationCode) {
+            alert('Por favor, ingrese el código de activación');
+            return;
+        }
+
+        if (!token) {
+            alert('Por favor, genere un código QR primero');
+            return;
+        }
+
+        fetch('/admin/activate_table', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                token: token,
+                activation_code: activationCode,
+                duration: parseInt(duration)
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Error al activar la mesa');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Mesa activada correctamente');
+            activationCodeInput.value = '';
+            updateActiveTables();
+        })
+        .catch(error => {
+            alert(error.message);
+        });
+    });
+
+    // Cargar mesas activas
+    function loadActiveTables() {
+        fetch('/admin/active_tables')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('active-tables-body');
+                tableBody.innerHTML = '';
+                
+                data.tables.forEach(table => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${table.table_number}</td>
+                        <td>${formatDateTime(table.session_start)}</td>
+                        <td>${formatDateTime(table.session_end)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deactivateTable(${table.table_number})">
+                                Desactivar
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
+    }
+
+    // Función para formatear fechas
+    function formatDateTime(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleString();
+    }
+
+    // Cargar mesas activas al iniciar
+    loadActiveTables();
+    
+    // Actualizar cada minuto
+    setInterval(loadActiveTables, 60000);
+});
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    document.execCommand('copy');
+    alert('URL copiada al portapapeles');
+}
+
+function deactivateTable(tableNumber) {
+    if (!confirm('¿Está seguro de que desea desactivar esta mesa?')) {
+        return;
+    }
+
+    fetch('/admin/deactivate_table', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            table_number: parseInt(tableNumber)
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Error al desactivar la mesa');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert(data.message || 'Mesa desactivada correctamente');
+        updateActiveTables();
+    })
+    .catch(error => {
+        alert(error.message);
+    });
+}
+</script>
+{% endblock %}

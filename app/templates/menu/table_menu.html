@@ -1,0 +1,15 @@
+{% extends "menu/menu_base.html" %}
+
+{% block order_button %}
+<button class="btn btn-success w-100" onclick="submitOrder()">
+    Realizar Pedido
+</button>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Agregar la URL correcta para create_order
+    const CREATE_ORDER_URL = "{{ url_for('main.create_order') }}";
+</script>
+{% endblock %}

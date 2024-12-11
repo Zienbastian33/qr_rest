@@ -1,0 +1,7 @@
+{% extends "menu/menu_base.html" %}
+
+{% block order_button %}
+<button class="btn btn-success w-100" onclick="window.location.href='{{ url_for('main.payment_page') }}'">
+    Proceder al Pago
+</button>
+{% endblock %}

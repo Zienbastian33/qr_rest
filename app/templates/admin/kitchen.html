@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="kitchen-container">
+    <!-- Barra de navegación del admin -->
+    <nav class="admin-nav mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('admin.qr_generator') }}" class="btn btn-link text-dark">
+                    <i class="fas fa-qrcode fa-lg"></i>
+                </a>
+                <h4 class="mb-0 ms-3">Cocina - Pedidos Activos</h4>
+            </div>
+            <div class="current-time">
+                <i class="far fa-clock"></i>
+                <span id="current-time">{{ current_time.strftime('%d/%m/%Y %H:%M:%S') }}</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="row">
+        <!-- Pedidos Locales -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-utensils me-2"></i>
+                        Pedidos en Local
+                        <span class="badge bg-light text-primary ms-2" id="local-count">0</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="orders-list" id="local-orders">
+                        <!-- Los pedidos locales se cargarán aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pedidos Delivery -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-motorcycle me-2"></i>
+                        Pedidos Delivery
+                        <span class="badge bg-light text-success ms-2" id="delivery-count">0</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="orders-list" id="delivery-orders">
+                        <!-- Los pedidos delivery se cargarán aquí -->
+                        <div class="text-center text-muted">
+                            <i class="fas fa-code fa-3x mb-3"></i>
+                            <p>Funcionalidad en desarrollo</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para detalles del pedido -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalles del Pedido</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="order-details-content">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-success" id="complete-order-btn">
+                        Marcar como Completado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.kitchen-container {
+    padding: 20px;
+}
+
+.orders-list {
+    min-height: 400px;
+}
+
+.order-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+    margin-bottom: 15px;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+}
+
+.order-time {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.order-table {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.order-items-count {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.badge {
+    font-size: 0.9em;
+}
+
+.modal-body {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.order-item {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+}
+
+.order-item:last-child {
+    border-bottom: none;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const localOrders = document.getElementById('local-orders');
+    const localCount = document.getElementById('local-count');
+    const orderDetailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+    const orderDetailsContent = document.getElementById('order-details-content');
+    const completeOrderBtn = document.getElementById('complete-order-btn');
+    let currentOrderId = null;
+
+    function updateTime() {
+        const timeDisplay = document.getElementById('current-time');
+        const now = new Date();
+        timeDisplay.textContent = now.toLocaleString();
+    }
+    setInterval(updateTime, 1000);
+
+    function loadOrders() {
+        fetch('/admin/kitchen/orders')
+            .then(response => response.json())
+            .then(data => {
+                localOrders.innerHTML = '';
+                localCount.textContent = data.orders.length;
+                
+                data.orders.forEach(order => {
+                    const orderCard = document.createElement('div');
+                    orderCard.className = 'card order-card';
+                    orderCard.innerHTML = `
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="order-table">Mesa ${order.table_number}</div>
+                                    <div class="order-time">${new Date(order.created_at).toLocaleString()}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="order-items-count">${order.items.length} items</div>
+                                    <div class="order-total">$${order.total.toFixed(0)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    orderCard.addEventListener('click', () => showOrderDetails(order));
+                    localOrders.appendChild(orderCard);
+                });
+            });
+    }
+
+    function showOrderDetails(order) {
+        currentOrderId = order.id;
+        orderDetailsContent.innerHTML = `
+            <div class="mb-3">
+                <h6>Mesa ${order.table_number}</h6>
+                <small class="text-muted">Pedido realizado: ${new Date(order.created_at).toLocaleString()}</small>
+            </div>
+            <div class="order-items">
+                ${order.items.map(item => `
+                    <div class="order-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${item.name}</strong> x${item.quantity}
+                            </div>
+                            <div>$${(item.price * item.quantity).toFixed(0)}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="mt-3 pt-2 border-top">
+                <div class="d-flex justify-content-between">
+                    <strong>Total:</strong>
+                    <strong>$${order.total.toFixed(0)}</strong>
+                </div>
+            </div>
+        `;
+        orderDetailsModal.show();
+    }
+
+    completeOrderBtn.addEventListener('click', function() {
+        if (currentOrderId) {
+            fetch('/admin/kitchen/complete_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    order_id: currentOrderId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    orderDetailsModal.hide();
+                    loadOrders();
+                }
+            });
+        }
+    });
+
+    // Cargar pedidos inicialmente y actualizar cada 30 segundos
+    loadOrders();
+    setInterval(loadOrders, 30000);
+});
+</script>
+{% endblock %}
